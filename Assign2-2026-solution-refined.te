@@ -1,0 +1,66 @@
+############################################################################################
+# --------------MITS 5300 Assignment 2 SELinux Policy Solution------------------- 
+# Note: the solution is using the hello_t domain, essentially extending the "Hello world" 
+# example to the assignment's target program.
+############################################################################################
+
+module hello 1.0.0;
+require {
+        type unconfined_t;
+        class process transition;
+        role unconfined_r;
+        attribute domain;
+        attribute file_type;
+        class file { entrypoint execute read open append getattr execute execute_no_trans };
+        class file map;
+        type user_devpts_t;
+        class chr_file { getattr read write};
+        class dir {search };
+        type user_home_t;
+        type bin_t;
+        type passwd_exec_t;
+
+}
+
+type hello_t, domain;
+type hello_exec_t, file_type;
+
+
+
+
+
+
+
+
+
+type_transition unconfined_t hello_exec_t : process hello_t;
+role unconfined_r types hello_t;
+
+# For basic hello world operation (from audit2allow):
+allow hello_t hello_exec_t:file { entrypoint execute read };
+allow hello_t hello_exec_t:file map;
+allow hello_t user_devpts_t:chr_file { getattr read write };
+
+# For setting up least privilege, need a different label for the params & records files.
+type my_params_t, file_type; 
+type my_records_t, file_type; 
+
+#Note: the permissions sets for each of these should be exactly as below, not more.
+allow hello_t my_params_t:file{open read getattr};
+allow hello_t my_records_t:file{open append getattr};
+
+#Added by audit2allow in order to find the files in priv dir. It is even better to label
+# the priv directory with its own label, and then limit dir search to that label. We have
+# relaxed this requirement in this solution file.
+allow hello_t user_home_t:dir search;
+
+#============= hello_t (audit2allow for strings) ==============
+#Needed for running the "strings" program. If these remaining lines were not added, it is 
+#an indication that the program was not fully run/tested through all branches (in this program,
+#it was only 2 branches).
+allow hello_t bin_t:file { execute execute_no_trans };
+allow hello_t bin_t:file map;
+
+#Needed for the strings program to be able to access the passwd program
+#to read it and output its strings.
+allow hello_t passwd_exec_t:file { getattr open read };
